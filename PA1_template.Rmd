@@ -1,25 +1,220 @@
----
-title: "Reproducible Research: Peer Assessment 1"
-output: 
-  html_document:
-    keep_md: true
----
+Peer Assessment 1
+=================
 
+This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>. When the **Knit** button is clicked, a document is generated that includes both content as well as the output of any embedded R code chunks within it.
 
-## Loading and preprocessing the data
+This R Markdown document is the first of two course projects, or Peer Assessment 1, of Coursera's Reproducible Research class, the fifth (5th) of nine (9) courses (plus a Capstone Project) in Johns Hopkins University's Data Science Specialization.
 
+All the work has been done locally prior to making any commits to GitHub.
 
+Introduction
+------------
 
-## What is mean total number of steps taken per day?
+It is now possible to collect a large amount of data about personal movement using activity monitoring devices such as a [Fitbit](http://www.fitbit.com/), [Nike Fuelband](http://www.nike.com/us/en_us/c/nikeplus-fuel), or [Jawbone Up](https://jawbone.com/up). These type of devices are part of the "quantified self" movement - a group of enthusiasts who take measurements about themselves regularly to improve their health, to find patterns in their behavior, or because they are tech geeks. But these data remain under-utilized both because the raw data are hard to obtain and there is a lack of statistical methods and software for processing and interpreting the data.
 
+This assignment makes use of data from a personal activity monitoring device. This device collects data at 5 minute intervals through out the day. The data consists of two months of data from an anonymous individual collected during the months of October and November, 2012 and include the number of steps taken in 5 minute intervals each day.
+Data
 
+The data for this assignment can be downloaded from the forked [GitHub Repository created for this assignment](https://github.com/rdpeng/RepData_PeerAssessment1):
 
-## What is the average daily activity pattern?
+- *Dataset*: [Activity monitoring data](https://github.com/NeryCastillo-McIntyre/RepData_PeerAssessment1/blob/master/activity.zip) [52K]
 
+The variables included in this dataset are:
 
+- **steps**: Number of steps taking in a 5-minute interval (missing values are coded as NA)
 
-## Imputing missing values
+- **date**: The date on which the measurement was taken in YYYY-MM-DD format
 
+- **interval**: Identifier for the 5-minute interval in which measurement was taken
 
+The dataset is stored in a comma-separated-value (CSV) file and there are a total of 17,568 observations in this dataset.
 
-## Are there differences in activity patterns between weekdays and weekends?
+### Loading and Pre-Processing the Data
+
+Since all the work has been done locally, the first step after opening RStudio is to set the proper working directory. The selection varies according to individual idiosyncrasies, but for purposes of Peer Assessment 1, a subdirectory has been created, named "Project 1". The data file called "Activity.csv" has been downloaded and saved the "Project 1" subdirectory.
+
+1. Load the data and briefly explore it
+
+```{r Loading the Data, echo=TRUE, cache=TRUE}
+Activity <- read.csv ("Activity.csv")
+    head(Activity)
+    tail(Activity)
+    str(Activity)
+    summary(Activity)
+```
+
+2. Process/transform the data into a format suitable for analysis, and start by loading the necessary packages, including ```plyr```, ```dplyr```, ```tidyr```, and ```lubridate``` from library.
+
+```{r Load Packages to Further Manipulate Data, echo=FALSE, cache=TRUE}
+library(plyr); library(dplyr); library(tidyr); library(lubridate);
+```
+
+```{r Pre-Processing the Data, echo=TRUE, cache=TRUE}
+    StepsTaken <- tbl_df(Activity)
+        StepsTaken$date <- mdy(StepsTaken$date)
+            day <- wday(StepsTaken$date, label = TRUE, abbr = FALSE)
+                StepsTaken <- cbind(StepsTaken, day)
+                head(StepsTaken)
+               tail(StepsTaken)
+               str(StepsTaken)
+               summary(StepsTaken)
+```
+
+### What Is the Mean Total Number of Steps Taken Per Day
+
+For this part of the assignment, missing values in the dataset may be ignored.
+
+1. Calculate the total number of steps taken per day
+
+```{r Total Number of Steps Taken Per Day, echo=TRUE, cache=TRUE}
+    Clean <- filter(StepsTaken, !is.na(steps))
+        Daily <- group_by(Clean, date)
+            DailyTotal <- summarize(Daily, sum(steps))
+                DailyTotal
+```
+
+2. Make a histogram of the total number of steps taken each day
+
+```{r Histogram of Total Number of Steps Taken Each Day, echo=TRUE, cache=TRUE}
+   hist(DailyTotal$`sum(steps)`, col = "red", breaks = 30, main = "Histogram",
+         xlab = "Total Number of Steps Taken Each Day")
+    rug(DailyTotal$`sum(steps)`)
+    abline(v = median(DailyTotal$`sum(steps)`), col = "orange", lwd = 3)             
+```
+
+3. Calculate and report the mean and median of the total number of steps taken per day
+
+```{r Median and Mean Total Number of Steps Taken Per Day, echo=TRUE, cache=TRUE}
+    DailyMedian <- summarize(Daily, median(steps))
+        DailyMedian
+    DailyAverage <- summarize(Daily, mean(steps))
+        DailyAverage
+```
+
+### What is the average daily activity pattern?
+
+1. Make a time series plot (i.e. ```type = "l"```) of the 5-minute interval (x-axis) and the average number of steps taken, averaged across all days (y-axis)
+
+```{r Number of Steps Taken per 5-Minute Interval, echo=TRUE, cache=TRUE}
+   FiveMinute <- group_by(Clean, interval)
+        DailyPattern <- summarize(FiveMinute, mean(steps))
+            DailyPattern
+            
+    plot(DailyPattern$interval, DailyPattern$`mean(steps)`, type = "l", 
+         col = "black", main = "Average Daily Activity Pattern", 
+         xlab = "5-Minute Interval", ylab = "Average Number of Steps")
+```
+
+2. Which 5-minute interval, on average across all the days in the dataset, contains the maximum number of steps?
+
+```{r 5-Minute Interval with the Maximum Number of Steps, on average across all days in the dataset, echo=TRUE, cache=TRUE}
+   arrange(DailyPattern, desc(`mean(steps)`)) 
+```
+
+### Imputing missing values
+
+Note that there are a number of day/intervals where there are missing values (coded as ```NA```). The presence of missing days may introduce bias into some calculations or summaries of the data.
+
+1. Calculate and report the total number of missing values in the dataset (i.e. the total number of rows with ```NA```s)
+
+```{r Calculate and Report Total Number of NAs, echo=TRUE, cache=TRUE}
+   MissingValues <- is.na(StepsTaken)
+        TotalMissingValues <- sum(MissingValues)
+            TotalMissingValues 
+```
+
+2. Devise a strategy for filling in all of the missing values in the dataset. The strategy does not need to be sophisticated. For example, one could use the mean/median for that day, or the mean for that 5-minute interval, etc.
+
+One of the contributors on Stack Overflow has referred to the idea of replacing missing values with the mean of a column as "statistical malpractice," on the basis that such action "seriously inflate[s] the significance of the results." On the other hand, replacing all the missing values with zeroes would accomplish the opposite effect, to "seriously" deflate "the signifance of the results;" moreover, it would ignore the likelihood that the subject simply did not wear the tracking devise on the given day/date/time, and operate instead as if the subject failed to take any steps at all.
+
+Thus, for the purposes of this assignment, the missing values are being replaced with the median for that 5-minute interval, since such value is neither as high as the mean nor as low as zero.
+
+3. Create a new dataset that is equal to the original dataset but with the missing data filled in.
+
+After working on this item for far too long without success, credit belongs to one of the [discussion forum contributors](https://class.coursera.org/repdata-036/forum/thread?thread_id=64) for the following code.
+
+```{r Create a new dataset equal to the original sans NAs, echo=TRUE, cache=TRUE}
+    FullInterval <- StepsTaken
+        NAs <- is.na(FullInterval$steps)
+            InterMedian <- tapply(FullInterval$steps, FullInterval$interval, median, na.rm = TRUE, simplify = TRUE)
+                FullInterval$steps[NAs] <- InterMedian[as.character(FullInterval$interval[NAs])]
+                    head(FullInterval)
+                    tail(FullInterval)
+                    str(FullInterval)
+                    summary(FullInterval)
+
+                        MissingNAValues <- is.na(FullInterval)
+                            TotalMissingNAValues <- sum(MissingNAValues)
+                                TotalMissingNAValues
+```
+
+4. Make a histogram of the total number of steps taken each day and Calculate and report the mean and median total number of steps taken per day. Do these values differ from the estimates from the first part of the assignment? What is the impact of imputing missing data on the estimates of the total daily number of steps?
+
+a. Calculate the total number of steps taken per day
+
+```{r New Total Number of Steps Taken Per Day, echo=TRUE, cache=TRUE}
+    Dately <- group_by(FullInterval, date)
+            DatelyTotal <- summarize(Dately, sum(steps))
+                DatelyTotal
+```
+
+b. Make a histogram of the total number of steps taken each day
+
+```{r New Histogram of Total Number of Steps Taken Each Day, echo=TRUE, cache=TRUE}
+   hist(DatelyTotal$`sum(steps)`, col = "red", breaks = 30, main = "Histogram",
+         xlab = "Total Number of Steps Taken Each Day")
+    rug(DatelyTotal$`sum(steps)`)
+    abline(v = median(DatelyTotal$`sum(steps)`), col = "orange", lwd = 3)             
+```
+
+c. Calculate and report the mean and median of the total number of steps taken per day
+
+```{r New Median and Mean Total Number of Steps Taken Per Day, echo=TRUE, cache=TRUE}
+    DatelyMedian <- summarize(Dately, median(steps))
+        DatelyMedian
+    DatelyAverage <- summarize(Dately, mean(steps))
+        DatelyAverage
+```
+
+d. Compare and contrast
+
+```{r Compare and Contrast Earlier Median and Mean, echo=TRUE, cache=TRUE}
+DailyMedian
+    DatelyMedian
+    
+DailyAverage
+    DatelyAverage
+```
+
+e. Impact of Imputing Missing Data
+
+The primary (or, even, sole) impact of imputing missing data on the estimates of the total daily number of steps - at least when comparing and contrasting the earlier median and mean calculations with the later ones - is that there are additional observations: 61, to be exact, as compared to 53. The other values appear to remain constant.
+
+### Are there differences in activity patterns between weekdays and weekends?
+
+For this part the ```weekdays()``` function may be of some help here. Use the dataset with the filled-in missing values for this part.
+
+1. Create a new factor variable in the dataset with two levels - "weekday" and "weekend" indicating whether a given date is a weekday or weekend day.
+
+Same attribution as [above](https://class.coursera.org/repdata-036/forum/thread?thread_id=64).
+
+```{r Create New Factor Variable with 2 weekday and weekend Levels, echo=TRUE, cache=TRUE}
+FullInterval <- mutate(FullInterval, weekenday = ifelse(day == "Monday" | day == "Tuesday" | day == "Wednesday" | day == "Thursday" | day == "Friday", "weekday", "weekend"))
+    FullInterval$weekenday <- as.factor(FullInterval$weekenday)
+        head(FullInterval)
+        tail(FullInterval)
+        str(FullInterval)
+        summary(FullInterval)
+```
+
+2. Make a panel plot containing a time series plot (i.e. type = "l") of the 5-minute interval (x-axis) and the average number of steps taken, averaged across all weekday days or weekend days (y-axis). See the README file in the GitHub repository to see an example of what this plot should look like using simulated data.
+
+```{r Time Series Panel Plot for WeekEnDay Averages, echo=TRUE, cache=TRUE}
+   EnDay <- group_by(FullInterval, interval, weekenday)
+        EnDayAverage <- summarize(EnDay, mean(steps))
+            EnDayAverage
+    
+library(lattice)
+    xyplot(`mean(steps)` ~ interval | weekenday, data = EnDayAverage, layout = c(1,2),
+                type = "l", xlab = "Interval", ylab = "Number of Steps")     
+```
